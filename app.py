@@ -27,7 +27,7 @@ def predict():
         return jsonify({
             'enrichment': enrichment,
             'flux': f"{flux:.4e} n/cm²-s",
-            'burnup': f"{burnup:.10f} MWd/kgU"
+            'burnup': f"{burnup:.20f} MWd/kgU"
         })
 
     except Exception as e:
