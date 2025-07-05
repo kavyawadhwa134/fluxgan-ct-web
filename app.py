@@ -1,16 +1,11 @@
 from flask import Flask, render_template, request, jsonify
-import torch
-import numpy as np
-from fluxgan_core import load_checkpoint, predict_flux_burnup  # This is your model logic
+from fluxgan_core import load_checkpoint, predict_flux_burnup
 import os
-
 
 app = Flask(__name__)
 
-# Load model + checkpoint info once
+# Load model only once
 generator, checkpoint_info = load_checkpoint('./fluxgan_model/checkpoint_1000.tar')
-generator.eval()
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 @app.route('/')
 def index():
@@ -19,22 +14,23 @@ def index():
 @app.route('/predict', methods=['POST'])
 def predict():
     try:
-        # Get enrichment input from frontend
-        data = request.get_json()
-        enrichment = float(data['enrichment'])
-
-        # Run the model
+        enrichment = float(request.form['enrichment'])
         flux, burnup = predict_flux_burnup(generator, checkpoint_info, enrichment)
+
+        # Avoid negative outputs (optional safety)
+        flux = max(flux, 0)
+        burnup = max(burnup, 0)
 
         return jsonify({
             'enrichment': enrichment,
             'flux': f"{flux:.4e} n/cm²-s",
-            'burnup': f"{burnup:.20f} MWd/kgU"
+            'burnup': f"{burnup:.6g} MWd/kgU"
         })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Render requirement: bind to 0.0.0.0 and dynamic port
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    port = int(os.environ.get('PORT', 5050))  # PORT env var is provided by Render
+    app.run(host='0.0.0.0', port=port, debug=True)
