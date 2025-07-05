@@ -1,83 +1,174 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>FluxGAN Neutronics Tool</title>
+  <meta charset="UTF-8" />
+  <title>FluxGAN: Neutronics Surrogate Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
+    :root {
+      --accent: #0077b6;
+      --bg: #f1f3f5;
+      --card: #ffffff;
+      --shadow: rgba(0, 0, 0, 0.1);
+    }
+
     body {
-      font-family: Arial, sans-serif;
-      margin: 40px;
-      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+      font-family: "Segoe UI", sans-serif;
+      background-color: var(--bg);
     }
-    h2 {
-      color: #2c3e50;
+
+    .wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      min-height: 100vh;
     }
+
+    .card {
+      background-color: var(--card);
+      border-radius: 10px;
+      padding: 30px 40px;
+      box-shadow: 0 8px 16px var(--shadow);
+      max-width: 500px;
+      width: 100%;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+      color: var(--accent);
+      text-align: center;
+    }
+
     label {
-      font-weight: bold;
+      font-weight: 600;
+      display: block;
+      margin-top: 15px;
+      margin-bottom: 5px;
     }
-    input[type=number] {
-      width: 100px;
-      padding: 5px;
-      margin-right: 10px;
+
+    input[type="range"] {
+      width: 100%;
     }
+
+    .range-value {
+      margin-top: 8px;
+      font-size: 16px;
+      color: #333;
+    }
+
     button {
-      padding: 6px 12px;
-      font-weight: bold;
-      background-color: #2980b9;
+      margin-top: 20px;
+      padding: 12px;
+      width: 100%;
+      background-color: var(--accent);
       color: white;
       border: none;
+      border-radius: 6px;
+      font-size: 16px;
       cursor: pointer;
+      transition: background 0.2s ease;
     }
+
     button:hover {
-      background-color: #1e6ca4;
+      background-color: #005f86;
     }
-    #result {
-      margin-top: 20px;
-      font-size: 18px;
-    }
-    .box {
-      background-color: white;
-      padding: 20px;
+
+    .output-box {
+      margin-top: 30px;
+      background: #e7f5ff;
+      padding: 15px 20px;
+      border-left: 5px solid var(--accent);
       border-radius: 8px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 500px;
+      font-size: 16px;
+    }
+
+    .error {
+      color: red;
+      margin-top: 20px;
+    }
+
+    footer {
+      margin-top: 50px;
+      font-size: 13px;
+      color: #888;
     }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2>FluxGAN: Neutronics Surrogate Model</h2>
+  <div class="wrapper">
+    <div class="card">
+      <h1>FluxGAN: Neutronics Surrogate Tool</h1>
+      <form id="predictForm">
+        <label for="enrichment">Fuel Enrichment (%)</label>
+        <input
+          type="range"
+          id="enrichment"
+          name="enrichment"
+          min="0"
+          max="90"
+          step="0.1"
+          value="3.5"
+          oninput="updateSlider(this.value)"
+        />
+        <div class="range-value">Selected: <span id="rangeValue">3.5</span>%</div>
 
-    <label for="enrichment">Fuel Enrichment (%):</label>
-    <input type="number" id="enrichment" step="0.1" min="0" max="100" value="3.5">
+        <button type="submit">Predict Flux & Burnup</button>
+      </form>
 
-    <button onclick="predict()">Predict Flux & Burnup</button>
+      <div id="output" class="output-box" style="display: none;"></div>
+      <div id="error" class="error"></div>
+    </div>
 
-    <div id="result"></div>
+    <footer>
+      Built with 💡 using OpenMC + PyTorch | FluxGAN © {{ 2025 }}
+    </footer>
   </div>
 
   <script>
-    async function predict() {
-      const enrichment = parseFloat(document.getElementById('enrichment').value);
-      const response = await fetch('/predict', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enrichment: enrichment })
-      });
-
-      const result = await response.json();
-      const resultDiv = document.getElementById('result');
-
-      if (result.error) {
-        resultDiv.innerHTML = `<p style="color:red;">Error: ${result.error}</p>`;
-      } else {
-        resultDiv.innerHTML = `
-          <p><strong>Enrichment:</strong> ${result.enrichment}%</p>
-          <p><strong>Predicted Neutron Flux:</strong> ${result.flux}</p>
-          <p><strong>Predicted Burnup:</strong> ${result.burnup}</p>
-        `;
-      }
+    function updateSlider(value) {
+      document.getElementById("rangeValue").innerText = value;
     }
+
+    const form = document.getElementById("predictForm");
+    const output = document.getElementById("output");
+    const errorBox = document.getElementById("error");
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      const enrichment = document.getElementById("enrichment").value;
+
+      fetch("/predict", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `enrichment=${encodeURIComponent(enrichment)}`,
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            output.style.display = "none";
+            errorBox.innerText = data.error;
+          } else {
+            output.innerHTML = `
+              <strong>Input Enrichment:</strong> ${data.enrichment}%<br>
+              <strong>Predicted Neutron Flux:</strong> ${data.flux}<br>
+              <strong>Predicted Burnup:</strong> ${data.burnup}
+            `;
+            output.style.display = "block";
+            errorBox.innerText = "";
+          }
+        })
+        .catch((err) => {
+          errorBox.innerText = "Server error or invalid response.";
+          output.style.display = "none";
+        });
+    });
   </script>
 </body>
 </html>

@@ -32,5 +32,5 @@ def predict():
 
 # Render requirement: bind to 0.0.0.0 and dynamic port
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5050))  # PORT env var is provided by Render
+    port = int(os.environ.get('PORT', 500))  # PORT env var is provided by Render
     app.run(host='0.0.0.0', port=port, debug=True)
